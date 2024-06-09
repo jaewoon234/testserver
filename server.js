@@ -494,3 +494,58 @@ app.post("/save", function (req, res) {
 // app.get("/image/:imgname", function (req, res) {
 //   res.sendFile(__dirname + "/public/image/" + req.params.imgname);
 // });
+
+app.get("/facebook", passport.authenticate("facebook"));
+
+app.get(
+  "/facebook/callback",
+  passport.authenticate("facebook", {
+    succeessRedirect: "/",
+    failureRedirect: "/fail",
+  }),
+  function (req, res) {
+    console.log(req.session);
+    console.log(req.session.passport);
+    res.render("index.ejs", { user: req.session.passport });
+  }
+);
+
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: "768480038804927",
+      clientSecret: "47dc514a579612046d4eb2cea433e67f",
+      callbackURL: "/facebook/callback",
+    },
+    function (accessToken, refreshToken, profile, done) {
+      console.log(profile);
+      var authkey = "facebook" + profile.id;
+      var authName = profile.displayName;
+
+      console.log(authName);
+      console.log(authkey);
+
+      let loop = 0;
+      while (loop < 2) {
+        console.log(loop);
+        mydb
+          .collection("account")
+          .findOne({ userkey: authkey })
+          .then((result) => {
+            if (result != null) {
+              done(null, result);
+            } else {
+              mydb.collection("account").insertOne({
+                userkey: authkey,
+                userid: authName,
+              });
+            }
+          })
+          .catch((error) => {
+            done(null, false, error);
+          });
+        loop++;
+      }
+    }
+  )
+);
